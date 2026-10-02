@@ -66,7 +66,15 @@ export async function sendContact(
     return { status: 'error', fieldErrors }
   }
 
-  const to = process.env.CONTACT_TO_EMAIL ?? 'speedymg7@berkeley.edu'
+  const to = process.env.CONTACT_TO_EMAIL
+
+  if (!to) {
+    return {
+      status: 'error',
+      message: 'The contact form is not configured yet. Please try again later.',
+    }
+  }
+
   const subject = `New tutoring inquiry from ${name}`
   const rows: [string, string][] = [
     ['Name', name],
