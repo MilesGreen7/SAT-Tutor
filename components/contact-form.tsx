@@ -1,6 +1,6 @@
 'use client'
 
-import { useActionState } from 'react'
+import { useActionState, useEffect, useState } from 'react'
 import { sendContact, type ContactState } from '@/app/actions/contact'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -11,9 +11,41 @@ const initialState: ContactState = { status: 'idle' }
 
 const fieldClass = 'h-10 bg-card px-3 text-base md:text-sm'
 
+const CONTACT_METHODS = ['Email', 'Phone call', 'Text message'] as const
+type ContactMethod = (typeof CONTACT_METHODS)[number]
+
 export function ContactForm() {
   const [state, formAction, pending] = useActionState(sendContact, initialState)
+  const [contactMethod, setContactMethod] = useState<ContactMethod>('Email')
   const errors = state.fieldErrors ?? {}
+
+  useEffect(() => {
+    if (state.status === 'mailto' && state.mailtoHref) {
+      window.location.href = state.mailtoHref
+    }
+  }, [state])
+
+  if (state.status === 'mailto' && state.mailtoHref) {
+    return (
+      <div
+        role="status"
+        className="rounded-md border border-border bg-card p-6 leading-relaxed"
+      >
+        <p className="font-serif text-xl">Almost done.</p>
+        <p className="mt-2 text-sm text-muted-foreground">
+          Your email app should open with your message ready to go — just press send.
+          If it didn&apos;t open, use the button below.
+        </p>
+        <a
+          href={state.mailtoHref}
+          target="_top"
+          className="mt-4 inline-flex h-10 items-center rounded-lg bg-primary px-5 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90 focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-ring/50"
+        >
+          Open email
+        </a>
+      </div>
+    )
+  }
 
   if (state.status === 'success') {
     return (
@@ -72,6 +104,65 @@ export function ContactForm() {
             </p>
           )}
         </div>
+      </div>
+
+      <div className="grid gap-5 sm:grid-cols-2">
+        <div className="grid gap-2">
+          <Label htmlFor="phone">
+            Phone{' '}
+            <span className="font-normal text-muted-foreground">
+              {contactMethod === 'Email' ? '(optional)' : '(required)'}
+            </span>
+          </Label>
+          <Input
+            id="phone"
+            name="phone"
+            type="tel"
+            inputMode="tel"
+            autoComplete="tel"
+            placeholder="(555) 123-4567"
+            required={contactMethod !== 'Email'}
+            aria-invalid={!!errors.phone}
+            aria-describedby={errors.phone ? 'phone-error' : undefined}
+            className={fieldClass}
+          />
+          {errors.phone && (
+            <p id="phone-error" className="text-xs text-destructive">
+              {errors.phone}
+            </p>
+          )}
+        </div>
+        <fieldset
+          className="grid gap-2"
+          aria-describedby={errors.contactMethod ? 'contactMethod-error' : undefined}
+        >
+          <legend className="mb-2 text-sm font-medium leading-none">
+            Best way to reach you
+          </legend>
+          <div className="flex h-10 items-center gap-1 rounded-lg border border-input bg-card p-1">
+            {CONTACT_METHODS.map((method) => (
+              <label
+                key={method}
+                className="flex h-full flex-1 cursor-pointer items-center justify-center rounded-md px-2 text-sm text-muted-foreground transition-colors has-[:checked]:bg-primary has-[:checked]:text-primary-foreground has-[:focus-visible]:ring-3 has-[:focus-visible]:ring-ring/50"
+              >
+                <input
+                  type="radio"
+                  name="contactMethod"
+                  value={method}
+                  checked={contactMethod === method}
+                  onChange={() => setContactMethod(method)}
+                  className="sr-only"
+                />
+                {method === 'Text message' ? 'Text' : method === 'Phone call' ? 'Call' : method}
+              </label>
+            ))}
+          </div>
+          {errors.contactMethod && (
+            <p id="contactMethod-error" className="text-xs text-destructive">
+              {errors.contactMethod}
+            </p>
+          )}
+        </fieldset>
       </div>
 
       <div className="grid gap-5 sm:grid-cols-2">
