@@ -7,7 +7,18 @@ export type ContactState = {
   status: 'idle' | 'success' | 'error' | 'mailto'
   message?: string
   mailtoHref?: string
-  fieldErrors?: Partial<Record<'name' | 'email' | 'phone' | 'contactMethod' | 'message', string>>
+  fieldErrors?: Partial<
+    Record<'name' | 'email' | 'phone' | 'contactMethod' | 'message', string>
+  >
+  values?: {
+    name: string
+    email: string
+    phone: string
+    contactMethod: string
+    role: string
+    testDate: string
+    message: string
+  }
 }
 
 const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
@@ -49,21 +60,46 @@ export async function sendContact(
   const testDate = field(formData, 'testDate', 80)
   const message = field(formData, 'message', 4000)
 
+  const values = {
+    name,
+    email,
+    phone,
+    contactMethod,
+    role,
+    testDate,
+    message,
+  }
+
   const fieldErrors: ContactState['fieldErrors'] = {}
-  if (!name) fieldErrors.name = 'Please enter your name.'
-  if (!EMAIL_PATTERN.test(email)) fieldErrors.email = 'Please enter a valid email.'
-  if (!CONTACT_METHODS.includes(contactMethod as (typeof CONTACT_METHODS)[number])) {
+
+  if (!name) {
+    fieldErrors.name = 'Please enter your name.'
+  }
+
+  if (!EMAIL_PATTERN.test(email)) {
+    fieldErrors.email = 'Please enter a valid email.'
+  }
+
+  if (
+    !CONTACT_METHODS.includes(
+      contactMethod as (typeof CONTACT_METHODS)[number],
+    )
+  ) {
     fieldErrors.contactMethod = 'Please choose how you’d like to be contacted.'
   }
+
   if (phone && !isValidPhone(phone)) {
     fieldErrors.phone = 'Please enter a valid phone number.'
   } else if (!phone && contactMethod !== 'Email' && contactMethod) {
     fieldErrors.phone = 'Please add a phone number so I can reach you.'
   }
-  if (message.length < 10) fieldErrors.message = 'Please add a short message.'
 
   if (Object.keys(fieldErrors).length > 0) {
-    return { status: 'error', fieldErrors }
+    return {
+      status: 'error',
+      fieldErrors,
+      values,
+    }
   }
 
   const to = process.env.CONTACT_TO_EMAIL
@@ -72,10 +108,12 @@ export async function sendContact(
     return {
       status: 'error',
       message: 'The contact form is not configured yet. Please try again later.',
+      values,
     }
   }
 
   const subject = `New tutoring inquiry from ${name}`
+
   const rows: [string, string][] = [
     ['Name', name],
     ['Email', email],
@@ -86,17 +124,23 @@ export async function sendContact(
   ]
 
   const apiKey = process.env.RESEND_API_KEY
+
   if (!apiKey) {
     const body = `${rows.map(([k, v]) => `${k}: ${v}`).join('\n')}\n\n${message.slice(0, 1500)}`
+
     return {
       status: 'mailto',
       mailtoHref: `mailto:${to}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`,
+      values,
     }
   }
 
   const resend = new Resend(apiKey)
+
   const idempotencyKey = `contact-form/${createHash('sha256')
-    .update([name, email, phone, contactMethod, role, testDate, message].join('|'))
+    .update(
+      [name, email, phone, contactMethod, role, testDate, message].join('|'),
+    )
     .digest('hex')}`
 
   const { error } = await resend.emails.send(
@@ -108,7 +152,10 @@ export async function sendContact(
       text: `${rows.map(([k, v]) => `${k}: ${v}`).join('\n')}\n\n${message}`,
       html: `<div style="font-family:system-ui,sans-serif;line-height:1.5">
         ${rows
-          .map(([k, v]) => `<p style="margin:0"><strong>${k}:</strong> ${escapeHtml(v)}</p>`)
+          .map(
+            ([k, v]) =>
+              `<p style="margin:0"><strong>${k}:</strong> ${escapeHtml(v)}</p>`,
+          )
           .join('')}
         <p style="white-space:pre-wrap;margin-top:16px">${escapeHtml(message)}</p>
       </div>`,
@@ -118,9 +165,11 @@ export async function sendContact(
 
   if (error) {
     console.error('[contact] Resend error:', error.message)
+
     return {
       status: 'error',
       message: 'Something went wrong sending your message. Please try again.',
+      values,
     }
   }
 

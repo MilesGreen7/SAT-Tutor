@@ -16,8 +16,18 @@ type ContactMethod = (typeof CONTACT_METHODS)[number]
 
 export function ContactForm() {
   const [state, formAction, pending] = useActionState(sendContact, initialState)
-  const [contactMethod, setContactMethod] = useState<ContactMethod>('Email')
+
+  const [contactMethod, setContactMethod] = useState<ContactMethod>(
+    (state.values?.contactMethod as ContactMethod) ?? 'Email',
+  )
+
   const errors = state.fieldErrors ?? {}
+
+  useEffect(() => {
+    if (state.values?.contactMethod) {
+      setContactMethod(state.values.contactMethod as ContactMethod)
+    }
+  }, [state.values?.contactMethod])
 
   useEffect(() => {
     if (state.status === 'mailto' && state.mailtoHref) {
@@ -33,8 +43,8 @@ export function ContactForm() {
       >
         <p className="font-serif text-xl">Almost done.</p>
         <p className="mt-2 text-sm text-muted-foreground">
-          Your email app should open with your message ready to go — just press send.
-          If it didn&apos;t open, use the button below.
+          Your email app should open with your message ready to go — just press
+          send. If it didn&apos;t open, use the button below.
         </p>
         <a
           href={state.mailtoHref}
@@ -65,7 +75,12 @@ export function ContactForm() {
     <form action={formAction} noValidate className="grid gap-5">
       <div className="hidden" aria-hidden="true">
         <label htmlFor="company">Company</label>
-        <input id="company" name="company" tabIndex={-1} autoComplete="off" />
+        <input
+          id="company"
+          name="company"
+          tabIndex={-1}
+          autoComplete="off"
+        />
       </div>
 
       <div className="grid gap-5 sm:grid-cols-2">
@@ -76,6 +91,7 @@ export function ContactForm() {
             name="name"
             autoComplete="name"
             required
+            defaultValue={state.values?.name ?? ''}
             aria-invalid={!!errors.name}
             aria-describedby={errors.name ? 'name-error' : undefined}
             className={fieldClass}
@@ -86,6 +102,7 @@ export function ContactForm() {
             </p>
           )}
         </div>
+
         <div className="grid gap-2">
           <Label htmlFor="email">Email</Label>
           <Input
@@ -94,6 +111,7 @@ export function ContactForm() {
             type="email"
             autoComplete="email"
             required
+            defaultValue={state.values?.email ?? ''}
             aria-invalid={!!errors.email}
             aria-describedby={errors.email ? 'email-error' : undefined}
             className={fieldClass}
@@ -122,6 +140,7 @@ export function ContactForm() {
             autoComplete="tel"
             placeholder="(555) 123-4567"
             required={contactMethod !== 'Email'}
+            defaultValue={state.values?.phone ?? ''}
             aria-invalid={!!errors.phone}
             aria-describedby={errors.phone ? 'phone-error' : undefined}
             className={fieldClass}
@@ -132,13 +151,17 @@ export function ContactForm() {
             </p>
           )}
         </div>
+
         <fieldset
           className="grid gap-2"
-          aria-describedby={errors.contactMethod ? 'contactMethod-error' : undefined}
+          aria-describedby={
+            errors.contactMethod ? 'contactMethod-error' : undefined
+          }
         >
           <legend className="mb-2 text-sm font-medium leading-none">
             Best way to reach you
           </legend>
+
           <div className="flex h-10 items-center gap-1 rounded-lg border border-input bg-card p-1">
             {CONTACT_METHODS.map((method) => (
               <label
@@ -153,10 +176,15 @@ export function ContactForm() {
                   onChange={() => setContactMethod(method)}
                   className="sr-only"
                 />
-                {method === 'Text message' ? 'Text' : method === 'Phone call' ? 'Call' : method}
+                {method === 'Text message'
+                  ? 'Text'
+                  : method === 'Phone call'
+                    ? 'Call'
+                    : method}
               </label>
             ))}
           </div>
+
           {errors.contactMethod && (
             <p id="contactMethod-error" className="text-xs text-destructive">
               {errors.contactMethod}
@@ -171,7 +199,7 @@ export function ContactForm() {
           <select
             id="role"
             name="role"
-            defaultValue="Parent"
+            defaultValue={state.values?.role ?? 'Parent'}
             className="h-10 w-full rounded-lg border border-input bg-card px-3 text-base outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 md:text-sm"
           >
             <option>Parent</option>
@@ -179,14 +207,19 @@ export function ContactForm() {
             <option>Other</option>
           </select>
         </div>
+
         <div className="grid gap-2">
           <Label htmlFor="testDate">
-            Test date <span className="font-normal text-muted-foreground">(optional)</span>
+            Test date{' '}
+            <span className="font-normal text-muted-foreground">
+              (optional)
+            </span>
           </Label>
           <Input
             id="testDate"
             name="testDate"
             placeholder="e.g. March 2027"
+            defaultValue={state.values?.testDate ?? ''}
             className={fieldClass}
           />
         </div>
@@ -198,7 +231,7 @@ export function ContactForm() {
           id="message"
           name="message"
           rows={5}
-          required
+          defaultValue={state.values?.message ?? ''}
           placeholder="A little about the student, current scores, goals, and availability."
           aria-invalid={!!errors.message}
           aria-describedby={errors.message ? 'message-error' : undefined}
@@ -218,7 +251,12 @@ export function ContactForm() {
       )}
 
       <div>
-        <Button type="submit" size="lg" disabled={pending} className="h-10 px-5">
+        <Button
+          type="submit"
+          size="lg"
+          disabled={pending}
+          className="h-10 px-5"
+        >
           {pending ? 'Sending…' : 'Send message'}
         </Button>
       </div>
